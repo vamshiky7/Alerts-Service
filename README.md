@@ -22,11 +22,11 @@ Alerts are stored in memory and can be queried using service ID, start timestamp
     go run .
 
 ### Reading alerts
-   ```bash
+    ```bash
     curl --location --request GET 'http://localhost:8080/alerts?service_id=my_test_service_id&start_ts=1695644190&end_ts=1695644192'
-    
+
 ### Writing alerts
-  ```bash
+```bash
       curl --location --request POST 'http://localhost:8080/alerts' \
 --header 'Content-Type: application/json' \
 --data-raw '{
