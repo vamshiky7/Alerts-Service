@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -19,6 +20,20 @@ type Alert struct {
 	TeamSlack   string `json:"team_slack"`
 }
 
+type CustomAlert struct {
+	AlertID   string `json:"alert_id"`
+	Model     string `json:"model"`
+	AlertType string `json:"alert_type"`
+	AlertTS   string `json:"alert_ts"`
+	Severity  string `json:"severity"`
+	TeamSlack string `json:"team_slack"`
+}
+
+type WriteResponse struct {
+	AlertID string `json:"alert_id"`
+	Error   string `json:"error"`
+}
+
 var alerts []Alert
 
 func main() {
@@ -32,7 +47,7 @@ func main() {
 	r.Get("/alerts", ReadAlerts)
 	// Server start
 	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%s", "8080"),
+		Addr:    fmt.Sprintf(":%s", "4567"),
 		Handler: r,
 	}
 	log.Println("Server started...")
@@ -43,17 +58,111 @@ func main() {
 
 // POST Request Handler (Write Alert)
 func WriteAlert(w http.ResponseWriter, r *http.Request) {
-	// 1. Parse the JSON request body
-	// 2. Validate the input data
-	// 3. Store the alert data
-	// 4. Handle errors
-	// 5. Respond with an appropriate HTTP status code and JSON response }
-	// GET Request Handler (Read Alerts)
+	var alert Alert
+	if err := json.NewDecoder(r.Body).Decode(&alert); err != nil {
+		writeAlertError(w, alert.AlertID, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if alert.AlertID == "" || alert.ServiceName == "" || alert.ServiceID == "" {
+		writeAlertError(w, alert.AlertID, http.StatusBadRequest, "Alert ID, Service Name and Service ID cannot be empty")
+		return
+	}
+	for _, existingAlert := range alerts {
+		if existingAlert.AlertID == alert.AlertID {
+			writeAlertError(w, alert.AlertID, http.StatusBadRequest, "Alert ID already present")
+			return
+		}
+	}
+	alerts = append(alerts, alert)
+
+	response := WriteResponse{
+		AlertID: alert.AlertID,
+		Error:   "",
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
 }
+
+// GET Request Handler (Read Alerts)
 func ReadAlerts(w http.ResponseWriter, r *http.Request) {
-	// 1. Parse and validate query parameters
-	// 2. Query data storage to retrieve alerts
-	// 3. Create a response JSON object
-	// 4. Handle errors
-	// 5. Respond with an appropriate HTTP status code and JSON response }
+	serviceID := r.URL.Query().Get("service_id")
+	startTS := r.URL.Query().Get("start_ts")
+	endTS := r.URL.Query().Get("end_ts")
+
+	if serviceID == "" {
+		readAlertsError(w, http.StatusBadRequest, "Service ID cannot be empty")
+		return
+	}
+
+	responseAlerts, err := readAlertsResponse(serviceID, startTS, endTS)
+	if err != nil {
+		readAlertsError(w, http.StatusNotFound, err.Error())
+		return
+	}
+	response := struct {
+		ServiceID   string        `json:"service_id"`
+		ServiceName string        `json:"service_name"`
+		Alerts      []CustomAlert `json:"alerts"`
+	}{
+		ServiceID:   serviceID,
+		ServiceName: responseAlerts[0].ServiceName,
+	}
+
+	for _, alert := range responseAlerts {
+		customAlert := CustomAlert{
+			AlertID:   alert.AlertID,
+			Model:     alert.Model,
+			AlertType: alert.AlertType,
+			AlertTS:   alert.AlertTS,
+			Severity:  alert.Severity,
+			TeamSlack: alert.TeamSlack,
+		}
+		response.Alerts = append(response.Alerts, customAlert)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
+func readAlertsResponse(serviceID, startTS, endTS string) ([]Alert, error) {
+	readAlertsResponse := []Alert{}
+	for _, alert := range alerts {
+		if (alert.ServiceID == serviceID) &&
+			(startTS == "" || alert.AlertTS >= startTS) &&
+			(endTS == "" || alert.AlertTS <= endTS) {
+			readAlertsResponse = append(readAlertsResponse, alert)
+		}
+	}
+	if len(readAlertsResponse) == 0 {
+		return nil, fmt.Errorf("No alerts found")
+	}
+
+	return readAlertsResponse, nil
+}
+
+func readAlertsError(w http.ResponseWriter, httpStatusCode int, errorMessage string) {
+	response := struct {
+		Success bool   `json:"success"`
+		Error   string `json:"error"`
+	}{
+		Success: false,
+		Error:   errorMessage,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(httpStatusCode)
+	json.NewEncoder(w).Encode(response)
+}
+
+func writeAlertError(w http.ResponseWriter, alertID string, httpStatusCode int, errorMessage string) {
+	response := WriteResponse{
+		AlertID: alertID,
+		Error:   errorMessage,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(httpStatusCode)
+	json.NewEncoder(w).Encode(response)
 }
