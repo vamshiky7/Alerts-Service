@@ -1,7 +1,7 @@
 # Alerts Service
 
 The Alerts Service is a Go application to read and write alerts. 
-Alerts are stored in memory and can be queried using service ID and time range as the parameters.
+Alerts are stored in memory and can be queried using service ID, start timestamp and end timestamp as the parameters.
 
 
 ### Prerequisites
@@ -22,7 +22,7 @@ Alerts are stored in memory and can be queried using service ID and time range a
     go run .
 
 ### Reading alerts
-    ```bash
+   ```bash
     curl --location --request GET 'http://localhost:8080/alerts?service_id=my_test_service_id&start_ts=1695644190&end_ts=1695644192'
     
 ### Writing alerts
