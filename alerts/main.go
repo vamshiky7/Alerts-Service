@@ -63,6 +63,7 @@ func WriteAlert(w http.ResponseWriter, r *http.Request) {
 		writeAlertError(w, alert.AlertID, http.StatusInternalServerError, err.Error())
 		return
 	}
+
 	if alert.AlertID == "" || alert.ServiceName == "" || alert.ServiceID == "" {
 		writeAlertError(w, alert.AlertID, http.StatusBadRequest, "Alert ID, Service Name and Service ID cannot be empty")
 		return
@@ -109,6 +110,7 @@ func ReadAlerts(w http.ResponseWriter, r *http.Request) {
 		ServiceName: responseAlerts[0].ServiceName,
 	}
 
+	//To omit the repetition of ServiceID and ServiceName for each alertID in the response
 	for _, alert := range responseAlerts {
 		customAlert := CustomAlert{
 			AlertID:   alert.AlertID,
@@ -126,6 +128,7 @@ func ReadAlerts(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+//readAlertsResponse returns the list of alerts mtaching to the request paramters sent
 func readAlertsResponse(serviceID, startTS, endTS string) ([]Alert, error) {
 	readAlertsResponse := []Alert{}
 	for _, alert := range alerts {
@@ -142,6 +145,7 @@ func readAlertsResponse(serviceID, startTS, endTS string) ([]Alert, error) {
 	return readAlertsResponse, nil
 }
 
+//readAlertsError handles the errors while retrieving the alerts
 func readAlertsError(w http.ResponseWriter, httpStatusCode int, errorMessage string) {
 	response := struct {
 		Success bool   `json:"success"`
@@ -156,6 +160,7 @@ func readAlertsError(w http.ResponseWriter, httpStatusCode int, errorMessage str
 	json.NewEncoder(w).Encode(response)
 }
 
+//writeAlertError handles the errors while storing the alerts
 func writeAlertError(w http.ResponseWriter, alertID string, httpStatusCode int, errorMessage string) {
 	response := WriteResponse{
 		AlertID: alertID,
