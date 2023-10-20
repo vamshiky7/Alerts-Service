@@ -47,7 +47,7 @@ func main() {
 	r.Get("/alerts", ReadAlerts)
 	// Server start
 	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%s", "4567"),
+		Addr:    fmt.Sprintf(":%s", "8080"),
 		Handler: r,
 	}
 	log.Println("Server started...")
